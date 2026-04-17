@@ -183,6 +183,8 @@ function DashboardView({ premPlayers, nonPremPlayers, activeTab, currentData }) 
     datasets: []
   };
 
+  let closestPlayers = [];
+
   if (selectedPlayer) {
     const cColor = clusterColors[selectedPlayer.Cluster % clusterColors.length];
 
@@ -205,6 +207,26 @@ function DashboardView({ premPlayers, nonPremPlayers, activeTab, currentData }) 
       pointBackgroundColor: '#fff',
       pointBorderColor: cColor.border,
     });
+
+    // Calculate nearest neighbors in cluster
+    if (featureLabels.length > 0) {
+      const allClusterPlayers = currentData.filter(d => 
+        d.Cluster === selectedPlayer.Cluster && 
+        d.Player !== selectedPlayer.Player &&
+        (String(d.IsPrem).toLowerCase() === 'false' || d.IsPrem === false)
+      );
+      const playersWithDistances = allClusterPlayers.map(p => {
+        let sumSquaredDiffs = 0;
+        featureLabels.forEach(f => {
+          const val1 = selectedPlayer[`${f}_scaled`] || 0;
+          const val2 = p[`${f}_scaled`] || 0;
+          sumSquaredDiffs += Math.pow(val1 - val2, 2);
+        });
+        return { player: p, distance: Math.sqrt(sumSquaredDiffs) };
+      });
+      playersWithDistances.sort((a, b) => a.distance - b.distance);
+      closestPlayers = playersWithDistances.slice(0, 3).map(item => item.player);
+    }
   }
 
   return (
@@ -260,8 +282,8 @@ function DashboardView({ premPlayers, nonPremPlayers, activeTab, currentData }) 
 
       <section className="lg:col-span-8 flex flex-col gap-6">
         {selectedPlayer && (
-          <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm flex-1 flex flex-col items-center justify-center relative">
-            <div className="absolute top-8 left-8">
+          <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm flex-1 flex flex-col relative overflow-hidden">
+            <div className="mb-6 flex-shrink-0">
               <h2 className="text-3xl font-black text-gray-900 tracking-tight">{selectedPlayer.Player}</h2>
               <div className="mt-2 flex gap-2">
                 <span className="px-2.5 py-1 bg-gray-100 rounded-md text-xs font-semibold text-gray-600 border border-gray-200">{selectedPlayer.Squad}</span>
@@ -272,8 +294,31 @@ function DashboardView({ premPlayers, nonPremPlayers, activeTab, currentData }) 
               </div>
             </div>
 
-            <div className="w-full max-w-2xl h-[500px] mt-16 pt-8">
-              <Radar data={chartData} options={{ maintainAspectRatio: false, scales: { r: { ticks: { display: false } } } }} />
+            <div className="flex flex-col xl:flex-row items-center gap-8 flex-1 min-h-[400px]">
+              <div className="flex-1 w-full max-w-xl h-full min-h-[350px]">
+                <Radar data={chartData} options={{ maintainAspectRatio: false, scales: { r: { ticks: { display: false } } } }} />
+              </div>
+              
+              <div className="w-full xl:w-72 bg-gray-50 rounded-xl p-5 border border-gray-200 flex-shrink-0 self-stretch xl:self-auto overflow-y-auto">
+                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+                  <Search className="w-4 h-4 text-gray-500" />
+                  Closest Matches
+                </h3>
+                <div className="space-y-3">
+                  {closestPlayers.map((p, idx) => (
+                    <div key={idx} className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm flex flex-col">
+                      <div className="font-semibold text-gray-900 text-sm">{p.Player}</div>
+                      <div className="text-[11px] text-gray-500 mt-1 flex justify-between items-center">
+                        <span className="truncate mr-2">{p.Squad}</span>
+                        <span className={`font-bold px-1.5 py-0.5 rounded ${String(p.IsPrem).toLowerCase() === 'true' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>{String(p.IsPrem).toLowerCase() === 'true' ? 'Prem' : 'Non-Prem'}</span>
+                      </div>
+                    </div>
+                  ))}
+                  {closestPlayers.length === 0 && (
+                    <div className="text-sm text-gray-500">No other players found in this cluster.</div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}
