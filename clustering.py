@@ -1,12 +1,12 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.cluster import AgglomerativeClustering
+from sklearn.cluster import AgglomerativeClustering, KMeans
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from scipy.spatial.distance import cdist
 
-def hierarchical_clustering_and_assign(non_prem_df, prem_df, features, k, output_filename, prefix):
+def cluster_and_assign(non_prem_df, prem_df, features, k, output_filename, prefix, algorithm='hc'):
     # Minimum minutes logic ONLY to remove extreme outliers for the base clusters
     non_prem_df = non_prem_df[non_prem_df['Min'] >= 450].copy()
     prem_df = prem_df.copy()
@@ -27,9 +27,15 @@ def hierarchical_clustering_and_assign(non_prem_df, prem_df, features, k, output
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
     
-    # Agglomerative Clustering
-    hc = AgglomerativeClustering(n_clusters=k, linkage='ward')
-    non_prem_df['Cluster'] = hc.fit_predict(X_train_scaled)
+    # Clustering algorithm
+    if algorithm == 'hc':
+        model = AgglomerativeClustering(n_clusters=k, linkage='ward')
+        non_prem_df['Cluster'] = model.fit_predict(X_train_scaled)
+    elif algorithm == 'kmeans':
+        model = KMeans(n_clusters=k, random_state=42, n_init=10)
+        non_prem_df['Cluster'] = model.fit_predict(X_train_scaled)
+    else:
+        raise ValueError(f"Unknown algorithm: {algorithm}")
     
     # Save the scaled features for plotting radar charts
     for i, col in enumerate(features):
@@ -91,13 +97,24 @@ def cluster_goalkeepers():
     
     features = ['GA90', 'Save%', 'CS%', 'Saves/90', 'SoTA/90']
     
-    hierarchical_clustering_and_assign(
+    cluster_and_assign(
         gk_non_prem, 
         gk_prem, 
         features, 
         k=3, 
-        output_filename='gk_clustered.csv', 
-        prefix='GK'
+        output_filename='gk_clustered_hc.csv', 
+        prefix='GK HC',
+        algorithm='hc'
+    )
+
+    cluster_and_assign(
+        gk_non_prem, 
+        gk_prem, 
+        features, 
+        k=3, 
+        output_filename='gk_clustered_kmeans.csv', 
+        prefix='GK KMeans',
+        algorithm='kmeans'
     )
 
 def cluster_outfield():
@@ -118,16 +135,27 @@ def cluster_outfield():
 
     features = ['Gls/90', 'Ast/90', 'Sh/90', 'SoT/90', 'Crs/90', 'Int/90', 'TklW/90', 'Fls/90', 'Fld/90']
     
-    hierarchical_clustering_and_assign(
+    cluster_and_assign(
         out_non_prem, 
         out_prem, 
         features, 
         k=5, 
-        output_filename='outfield_clustered.csv', 
-        prefix='Outfield'
+        output_filename='outfield_clustered_hc.csv', 
+        prefix='Outfield HC',
+        algorithm='hc'
+    )
+
+    cluster_and_assign(
+        out_non_prem, 
+        out_prem, 
+        features, 
+        k=5, 
+        output_filename='outfield_clustered_kmeans.csv', 
+        prefix='Outfield KMeans',
+        algorithm='kmeans'
     )
 
 if __name__ == '__main__':
     cluster_goalkeepers()
     cluster_outfield()
-    print("Done generating combined hierarchical CSVs!")
+    print("Done generating combined clustering CSVs!")

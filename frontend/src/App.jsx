@@ -48,6 +48,7 @@ export default function App() {
   const [outfieldData, setOutfieldData] = useState([]);
   const [activeTab, setActiveTab] = useState('outfield');
   const [currentView, setCurrentView] = useState('dashboard');
+  const [algorithm, setAlgorithm] = useState('hc');
   
   const [language, setLanguage] = useState('en');
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -65,20 +66,20 @@ export default function App() {
   const t = (key) => translations[language]?.[key] || translations['en'][key];
 
   useEffect(() => {
-    Papa.parse('/gk_clustered.csv', {
+    Papa.parse(`/gk_clustered_${algorithm}.csv`, {
       download: true,
       header: true,
       dynamicTyping: true,
       complete: (results) => setGkData(results.data.filter((row) => row.Player)),
     });
 
-    Papa.parse('/outfield_clustered.csv', {
+    Papa.parse(`/outfield_clustered_${algorithm}.csv`, {
       download: true,
       header: true,
       dynamicTyping: true,
       complete: (results) => setOutfieldData(results.data.filter((row) => row.Player)),
     });
-  }, []);
+  }, [algorithm]);
 
   const currentData = activeTab === 'gk' ? gkData : outfieldData;
   const premPlayers = currentData.filter(d => String(d.IsPrem).toLowerCase() === 'true');
@@ -143,6 +144,21 @@ export default function App() {
               aria-label="Toggle Dark Mode"
             >
               {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+          </div>
+
+          <div className="flex bg-gray-100/80 dark:bg-slate-800 p-1 rounded-xl shadow-inner border border-gray-200/50 dark:border-slate-700">
+            <button
+              onClick={() => setAlgorithm('hc')}
+              className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-all ${algorithm === 'hc' ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm ring-1 ring-gray-900/5 dark:ring-0' : 'text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
+            >
+              Hierarchical
+            </button>
+            <button
+              onClick={() => setAlgorithm('kmeans')}
+              className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-all ${algorithm === 'kmeans' ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm ring-1 ring-gray-900/5 dark:ring-0' : 'text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
+            >
+              K-Means
             </button>
           </div>
 
