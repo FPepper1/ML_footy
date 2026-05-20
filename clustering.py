@@ -1,12 +1,12 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.cluster import DBSCAN, KMeans
+from sklearn.cluster import AgglomerativeClustering, KMeans
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from scipy.spatial.distance import cdist
 
-def cluster_and_assign(non_prem_df, prem_df, features, k, output_filename, prefix, algorithm='dbscan', eps=1.2, min_samples=5):
+def cluster_and_assign(non_prem_df, prem_df, features, k, output_filename, prefix, algorithm='hc'):
     # Minimum minutes logic ONLY to remove extreme outliers for the base clusters
     non_prem_df = non_prem_df[non_prem_df['Min'] >= 450].copy()
     prem_df = prem_df.copy()
@@ -28,8 +28,8 @@ def cluster_and_assign(non_prem_df, prem_df, features, k, output_filename, prefi
     X_train_scaled = scaler.fit_transform(X_train)
     
     # Clustering algorithm
-    if algorithm == 'dbscan':
-        model = DBSCAN(eps=eps, min_samples=min_samples)
+    if algorithm == 'hc':
+        model = AgglomerativeClustering(n_clusters=k, linkage='ward')
         non_prem_df['Cluster'] = model.fit_predict(X_train_scaled)
     elif algorithm == 'kmeans':
         model = KMeans(n_clusters=k, random_state=42, n_init=10)
@@ -42,24 +42,18 @@ def cluster_and_assign(non_prem_df, prem_df, features, k, output_filename, prefi
         non_prem_df[f'{col}_scaled'] = X_train_scaled[:, i]
 
     # Calculate centroids
-    unique_clusters = sorted([c for c in non_prem_df['Cluster'].unique() if c != -1])
-    
     centroids = []
-    for c in unique_clusters:
+    for c in range(k):
         centroids.append(X_train_scaled[non_prem_df['Cluster'] == c].mean(axis=0))
+    centroids = np.array(centroids)
 
     # Process Prem dataset
     X_test = prem_df[features]
     X_test_scaled = scaler.transform(X_test)
     
-    if len(centroids) > 0:
-        centroids = np.array(centroids)
-        # Predict clusters by Euclidean distance to the non-prem centroids
-        distances = cdist(X_test_scaled, centroids, metric='euclidean')
-        closest_indices = np.argmin(distances, axis=1)
-        prem_df['Cluster'] = [unique_clusters[idx] for idx in closest_indices]
-    else:
-        prem_df['Cluster'] = -1
+    # Predict clusters by Euclidean distance to the non-prem centroids
+    distances = cdist(X_test_scaled, centroids, metric='euclidean')
+    prem_df['Cluster'] = np.argmin(distances, axis=1)
 
     for i, col in enumerate(features):
         prem_df[f'{col}_scaled'] = X_test_scaled[:, i]
@@ -108,11 +102,9 @@ def cluster_goalkeepers():
         gk_prem, 
         features, 
         k=3, 
-        output_filename='gk_clustered_dbscan.csv', 
-        prefix='GK DBSCAN',
-        algorithm='dbscan',
-        eps=1.2,
-        min_samples=3
+        output_filename='gk_clustered_hc.csv', 
+        prefix='GK HC',
+        algorithm='hc'
     )
 
     cluster_and_assign(
@@ -148,11 +140,9 @@ def cluster_outfield():
         out_prem, 
         features, 
         k=5, 
-        output_filename='outfield_clustered_dbscan.csv', 
-        prefix='Outfield DBSCAN',
-        algorithm='dbscan',
-        eps=1.2,
-        min_samples=5
+        output_filename='outfield_clustered_hc.csv', 
+        prefix='Outfield HC',
+        algorithm='hc'
     )
 
     cluster_and_assign(

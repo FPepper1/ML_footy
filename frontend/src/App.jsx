@@ -28,8 +28,6 @@ const clusterColors = [
   { border: 'rgba(14, 165, 233, 1)', bg: 'rgba(14, 165, 233, 0.4)' },
 ];
 
-const getColor = (c) => c === -1 ? { border: "rgba(156, 163, 175, 1)", bg: "rgba(156, 163, 175, 0.4)" } : clusterColors[c % clusterColors.length];
-
 const getFlagEmoji = (nationStr) => {
   if (!nationStr) return '🏳️';
   const parts = typeof nationStr === 'string' ? nationStr.split(' ') : [];
@@ -50,7 +48,7 @@ export default function App() {
   const [outfieldData, setOutfieldData] = useState([]);
   const [activeTab, setActiveTab] = useState('outfield');
   const [currentView, setCurrentView] = useState('dashboard');
-  const [algorithm, setAlgorithm] = useState('dbscan');
+  const [algorithm, setAlgorithm] = useState('hc');
   
   const [language, setLanguage] = useState('en');
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -151,10 +149,10 @@ export default function App() {
 
           <div className="flex bg-gray-100/80 dark:bg-slate-800 p-1 rounded-xl shadow-inner border border-gray-200/50 dark:border-slate-700">
             <button
-              onClick={() => setAlgorithm('dbscan')}
-              className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-all ${algorithm === 'dbscan' ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm ring-1 ring-gray-900/5 dark:ring-0' : 'text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
+              onClick={() => setAlgorithm('hc')}
+              className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-all ${algorithm === 'hc' ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm ring-1 ring-gray-900/5 dark:ring-0' : 'text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
             >
-              DBSCAN
+              Hierarchical
             </button>
             <button
               onClick={() => setAlgorithm('kmeans')}
@@ -261,7 +259,7 @@ function DashboardView({ premPlayers, currentData, t, isDarkMode }) {
   let closestPlayers = [];
 
   if (selectedPlayer) {
-    const cColor = getColor(selectedPlayer.Cluster);
+    const cColor = clusterColors[selectedPlayer.Cluster % clusterColors.length];
 
     chartData.datasets.push({
       label: `Cluster ${selectedPlayer.Cluster} Average`,
@@ -342,7 +340,7 @@ function DashboardView({ premPlayers, currentData, t, isDarkMode }) {
         <div className="flex-1 overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-slate-700">
           {filteredData.map((player, idx) => {
             const isSelected = selectedPlayer?.Player === player.Player;
-            const cColor = getColor(player.Cluster);
+            const cColor = clusterColors[player.Cluster % clusterColors.length];
             return (
               <div
                 key={idx}
@@ -381,7 +379,7 @@ function DashboardView({ premPlayers, currentData, t, isDarkMode }) {
               <div className="mt-2 flex gap-2">
                 <span className="px-2.5 py-1 bg-gray-100 dark:bg-slate-900 rounded-md text-xs font-semibold text-gray-600 dark:text-slate-300 border border-gray-200 dark:border-slate-700 transition-colors">{selectedPlayer.Squad}</span>
                 <span className="px-2.5 py-1 bg-gray-100 dark:bg-slate-900 rounded-md text-xs font-semibold text-gray-600 dark:text-slate-300 border border-gray-200 dark:border-slate-700 transition-colors">{selectedPlayer.Pos}</span>
-                <span className="px-2.5 py-1 rounded-md text-xs font-bold border transition-colors" style={{ backgroundColor: getColor(selectedPlayer.Cluster).bg, borderColor: getColor(selectedPlayer.Cluster).border, color: isDarkMode ? '#fff' : getColor(selectedPlayer.Cluster).border }}>
+                <span className="px-2.5 py-1 rounded-md text-xs font-bold border transition-colors" style={{ backgroundColor: clusterColors[selectedPlayer.Cluster % clusterColors.length].bg, borderColor: clusterColors[selectedPlayer.Cluster % clusterColors.length].border, color: isDarkMode ? '#fff' : clusterColors[selectedPlayer.Cluster % clusterColors.length].border }}>
                   {t('matched_to')} {selectedPlayer.Cluster}
                 </span>
               </div>
@@ -426,7 +424,7 @@ function DashboardView({ premPlayers, currentData, t, isDarkMode }) {
 function ClusterExplorerView({ data, clusterCount, nonPremPlayers, premPlayers, t }) {
   const [selectedCluster, setSelectedCluster] = useState(0);
 
-  const clusterNumbers = Array.from(new Set(data.map(d => d.Cluster))).sort((a,b) => a - b);
+  const clusterNumbers = Array.from({ length: clusterCount }, (_, i) => i);
   const currentNonPrem = nonPremPlayers.filter(d => d.Cluster === selectedCluster);
   const currentPrem = premPlayers.filter(d => d.Cluster === selectedCluster);
 
@@ -454,7 +452,7 @@ function ClusterExplorerView({ data, clusterCount, nonPremPlayers, premPlayers, 
         <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-slate-700">
           {clusterNumbers.map(c => {
             const isSelected = selectedCluster === c;
-            const color = getColor(c);
+            const color = clusterColors[c % clusterColors.length];
             const totalPlayers = data.filter(d => d.Cluster === c).length;
             return (
               <div
@@ -468,7 +466,7 @@ function ClusterExplorerView({ data, clusterCount, nonPremPlayers, premPlayers, 
                   boxShadow: isSelected ? `0 10px 15px -3px ${color.bg}` : 'none'
                 }}
               >
-                <div className={`text-sm font-bold opacity-80 uppercase tracking-widest mb-1 ${!isSelected ? 'text-gray-900 dark:text-white' : ''}`}>{c === -1 ? 'Noise' : `Cluster ${c}`}</div>
+                <div className={`text-sm font-bold opacity-80 uppercase tracking-widest mb-1 ${!isSelected ? 'text-gray-900 dark:text-white' : ''}`}>Cluster {c}</div>
                 <div className={`text-3xl font-black ${!isSelected ? 'text-gray-900 dark:text-white' : ''}`}>{totalPlayers}</div>
                 <div className={`text-xs mt-1 opacity-80 font-medium ${!isSelected ? 'text-gray-500 dark:text-slate-400' : ''}`}>{t('total_players')}</div>
               </div>
@@ -486,7 +484,7 @@ function ClusterExplorerView({ data, clusterCount, nonPremPlayers, premPlayers, 
 }
 
 function PlayerListCard({ title, players, cluster, isPrem, t }) {
-  const cColor = getColor(cluster);
+  const cColor = clusterColors[cluster % clusterColors.length];
 
   return (
     <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm flex flex-col overflow-hidden transition-colors">
@@ -522,13 +520,12 @@ function VisualizerView({ data, clusterCount, t, isDarkMode }) {
 
   const datasets = [];
 
-  const clusterNumbers = Array.from(new Set(data.map(d => d.Cluster))).sort((a,b) => a - b);
-  for (const c of clusterNumbers) {
-    const cColor = getColor(c);
+  for (let c = 0; c < clusterCount; c++) {
+    const cColor = clusterColors[c % clusterColors.length];
 
     const clusterNonPrem = data.filter(d => d.Cluster === c && (String(d.IsPrem).toLowerCase() === 'false' || d.IsPrem === false));
     datasets.push({
-      label: `${c === -1 ? 'Noise' : 'Cluster ' + c} (${t('non_prem')})`,
+      label: `Cluster ${c} (${t('non_prem')})`,
       data: clusterNonPrem.map(d => ({ x: d.PCA1, y: d.PCA2, raw: d })),
       backgroundColor: cColor.bg,
       borderColor: 'transparent',
@@ -538,7 +535,7 @@ function VisualizerView({ data, clusterCount, t, isDarkMode }) {
 
     const clusterPrem = data.filter(d => d.Cluster === c && String(d.IsPrem).toLowerCase() === 'true');
     datasets.push({
-      label: `${c === -1 ? 'Noise' : 'Cluster ' + c} (${t('prem')})`,
+      label: `Cluster ${c} (${t('prem')})`,
       data: clusterPrem.map(d => ({ x: d.PCA1, y: d.PCA2, raw: d })),
       backgroundColor: isDarkMode ? cColor.border : cColor.bg,
       borderColor: isDarkMode ? '#1e293b' : '#ffffff',
